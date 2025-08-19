@@ -1,16 +1,52 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <vector>
 using namespace std;
 
 string currentUser, currentPass;
+vector<pair<string, string>> readUsers() {
+    vector<pair<string, string>> users;
+    ifstream file("users.csv");
+    string line;
+    while (getline(file, line)) {
+        size_t pos = line.find(',');
+        if (pos != string::npos) {
+            string username = line.substr(0, pos);
+            string password = line.substr(pos + 1);
+            users.push_back({username, password});
+        }
+    }
+    file.close();
+    return users;
+}
+void writeUsers(const vector<pair<string, string>>& users) {
+    ofstream file("users.csv", ios::trunc);
+    for (const auto& user : users) {
+        file << user.first << "," << user.second << "\n";
+    }
+    file.close();
+}
 
 void forgetPassword() {
     cout << "Enter new password for " << currentUser << ": ";
     cin >> currentPass;
-    ofstream file("users.csv", ios::app);
-    file << currentUser << "," << currentPass << "\n";
-    file.close();
+
+    vector<pair<string, string>> users = readUsers();
+    bool updated = false;
+    for (auto& user : users) {
+        if (user.first == currentUser) {
+            user.second = currentPass;
+            updated = true;
+            break;
+        }
+    }
+
+    if (!updated) {
+        users.push_back({currentUser, currentPass});
+    }
+
+    writeUsers(users);
     cout << "Password Reset Successful!\n";
 }
 
@@ -20,35 +56,23 @@ bool checkCredentials() {
     cout << "Enter Password: ";
     cin >> currentPass;
 
-    ifstream file("users.csv");
-    string u, p;
-    bool valid = false;
-    while (file >> u) {
-        size_t pos = u.find(',');
-        if (pos != string::npos) {
-            string name = u.substr(0, pos);
-            string pass = u.substr(pos + 1);
-            if (name == currentUser && pass == currentPass) {
-                valid = true;
-                break;
-            }
-        }
-    }
-    file.close();
-
-    if (!valid) {
-        string choice;
-        cout << "Invalid Credentials. Forgot Password? (yes/no): ";
-        cin >> choice;
-        if (choice == "yes") {
-            forgetPassword();
+    vector<pair<string, string>> users = readUsers();
+    for (const auto& user : users) {
+        if (user.first == currentUser && user.second == currentPass) {
+            cout << "Login Successful!\n";
             return true;
-        } else {
-            return checkCredentials();
         }
     }
-    cout << "Login Successful!\n";
-    return true;
+
+    string choice;
+    cout << "Invalid Credentials. Forgot Password? (yes/no): ";
+    cin >> choice;
+    if (choice == "yes") {
+        forgetPassword();
+        return true;
+    } else {
+        return checkCredentials(); 
+    }
 }
 
 void registerUser() {
@@ -56,9 +80,17 @@ void registerUser() {
     cin >> currentUser;
     cout << "Enter new password: ";
     cin >> currentPass;
-    ofstream file("users.csv", ios::app);
-    file << currentUser << "," << currentPass << "\n";
-    file.close();
+
+    vector<pair<string, string>> users = readUsers();
+    for (const auto& user : users) {
+        if (user.first == currentUser) {
+            cout << "Username already exists. Try logging in.\n";
+            return;
+        }
+    }
+
+    users.push_back({currentUser, currentPass});
+    writeUsers(users);
     cout << "Registration Successful!\n";
 }
 
